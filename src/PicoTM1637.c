@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <pico/stdlib.h>
-#include <hardware/pio.h>
 #include <hardware/clocks.h>
 #include <PicoTM1637.h>
 #include <PicoTM1637.pio.h>
@@ -13,10 +11,10 @@
 #define MAX_DIGITS 4
 
 /* Global variables */
-PIO pio;
-uint clkPin, dioPin, sm, brightness = 0;
-bool colon = true;
-pio_sm_config smConfig;
+//PIO pio;
+//uint clkPin, dioPin, sm, brightness = 0;
+//bool colon = true;
+//pio_sm_config smConfig;
 
 static const uint8_t digitToSegment[] = {
   0b00111111,    // 0
@@ -41,21 +39,20 @@ static const uint8_t segmentsArr[] = {
 #include "../data/char_table.txt"
 };
 
-void TM1637_init(uint clk, uint dio) {
+void TM1637_init(TM1637_device* device) {
   // Choose which PIO and sm instance to use 
-  pio = pio0;
-  sm = 0;
-
-  clkPin = clk;
-  dioPin = dio;
-
   // Our assembled program needs to be loaded into this PIO's instruction
   // memory. This SDK function will find a location (offset) in the
   // instruction memory where there is enough space for our program. We need
   // to remember this location!
+
+  PIO pio = device->pio;
+  uint clkPin = device->clk_pin, dioPin = device->dio_pin, sm = device->sm;
+  pio_sm_config* smConfig = &device->config;
+
   uint offset = pio_add_program(pio, &tm1637_program);
 
-  smConfig = tm1637_program_get_default_config(offset);
+  *smConfig = tm1637_program_get_default_config(offset);
 
   gpio_pull_up(clkPin);
   gpio_pull_up(dioPin);
@@ -63,45 +60,43 @@ void TM1637_init(uint clk, uint dio) {
   pio_gpio_init(pio, clkPin);
   pio_gpio_init(pio, dioPin);
 
-  sm_config_set_sideset_pins(&smConfig, clkPin);
+  sm_config_set_sideset_pins(smConfig, clkPin);
 
   uint32_t both_pins = (1u << clkPin) | (1u << dioPin);
   pio_sm_set_pins_with_mask(pio, sm, both_pins, both_pins);
   pio_sm_set_pindirs_with_mask(pio, sm, both_pins, both_pins);
 
-  sm_config_set_out_pins(&smConfig, dioPin, 1);
-  sm_config_set_set_pins(&smConfig, dioPin, 1);
+  sm_config_set_out_pins(smConfig, dioPin, 1);
+  sm_config_set_set_pins(smConfig, dioPin, 1);
 
-  sm_config_set_out_shift(&smConfig, true, false, 32);
+  sm_config_set_out_shift(smConfig, true, false, 32);
 
-  TM1637_refresh_frequency();
+  TM1637_refresh_frequency(device);
 
   // Load our configuration, and jump to the start of the program
-  pio_sm_init(pio, sm, offset, &smConfig);
+  pio_sm_init(pio, sm, offset, smConfig);
 
   // Set the state machine running
   pio_sm_set_enabled(pio, sm, true);
-
-  stdio_init_all();
 }
 
-void set_display_on() {
-  pio_sm_put_blocking(pio, sm, BRIGHTNESS_BASE + brightness);
+void set_display_on(TM1637_device* device) {
+  pio_sm_put_blocking(device->pio, device->sm, BRIGHTNESS_BASE + device->brightness);
 }
 
-void TM1637_put_2_bytes(uint start_pos, uint data) {
+void TM1637_put_2_bytes(TM1637_device* device, uint start_pos, uint data) {
   uint address = WRITE_ADDRESS + start_pos;
-  pio_sm_put_blocking(pio, sm, (data << 16) + (address << 8) +  SET_WRITEMODE);
-  set_display_on();
+  pio_sm_put_blocking(device->pio, device->sm, (data << 16) + (address << 8) +  SET_WRITEMODE);
+  set_display_on(device);
 }
 
-void TM1637_put_4_bytes(uint start_pos, uint data) {
+void TM1637_put_4_bytes(TM1637_device* device, uint start_pos, uint data) {
   uint address = WRITE_ADDRESS + start_pos;
   uint data1 = data & 0xffff;  // first two bytes
   uint data2 = data >> 16;     // last two bytes
-  pio_sm_put_blocking(pio, sm, (data1 << 16) + (address << 8) + SET_WRITEMODE);
-  pio_sm_put_blocking(pio, sm, data2 << 16);  // I have no idea why this has to be shifted
-  set_display_on();
+  pio_sm_put_blocking(device->pio, device->sm, (data1 << 16) + (address << 8) + SET_WRITEMODE);
+  pio_sm_put_blocking(device->pio, device->sm, data2 << 16);  // I have no idea why this has to be shifted
+  set_display_on(device);
 }
 
 /* Convert a number to something readable for the 'put bytes' functions.
@@ -155,7 +150,7 @@ uint fetch_char_encoding(char charToFind) {
   return fetch_char_encoding(' '); 
 }
 
-void TM1637_display(int number, bool leadingZeros) { 
+void TM1637_display(TM1637_device* device, int number, bool leadingZeros) { 
   // Is number positive or negative?
   int isPositive;
   int isNegative;
@@ -198,10 +193,10 @@ void TM1637_display(int number, bool leadingZeros) {
   }
   
   // Display number
-  TM1637_put_4_bytes(startPos, hex);
+  TM1637_put_4_bytes(device, startPos, hex);
 }
 
-void TM1637_display_word(char *word, bool leftAlign) {
+void TM1637_display_word(TM1637_device* device, char *word, bool leftAlign) {
   // Find the binary representation of the word
   uint bin = 0;
   int i = 0;
@@ -233,11 +228,11 @@ void TM1637_display_word(char *word, bool leftAlign) {
   if (col >= 0) {
     bin |= (0x80 << col*8);
   }
-  TM1637_put_4_bytes(startIndex, bin);
+  TM1637_put_4_bytes(device, startIndex, bin);
 }
 
 /* Helper for getting the segment representation for a 2 digit number. */
-uint two_digit_to_segment(int num, bool leadingZeros, bool useColon) {
+uint two_digit_to_segment(TM1637_device* device, int num, bool leadingZeros) {
   uint hex = num_to_hex(num, 0xffff);
 
   int numDiv = num / 10;  // determine length of number
@@ -250,50 +245,38 @@ uint two_digit_to_segment(int num, bool leadingZeros, bool useColon) {
     hex = hex << 8;
   }
 
-  if(useColon) {
+  if(device->colon) {
     hex |= 0x8000;
   }
   
   return hex;
 }
 
-void TM1637_display_left(int num, bool leadingZeros) {
-  uint hex = two_digit_to_segment(num, leadingZeros, colon);  
-  TM1637_put_2_bytes(0, hex);
+void TM1637_display_left(TM1637_device* device, int num, bool leadingZeros) {
+  uint hex = two_digit_to_segment(device, num, leadingZeros);  
+  TM1637_put_2_bytes(device, 0, hex);
 }
 
-void TM1637_display_right(int num, bool leadingZeros) {
-  uint hex = two_digit_to_segment(num, leadingZeros, false);
-  TM1637_put_2_bytes(2, hex);
+void TM1637_display_right(TM1637_device* device, int num, bool leadingZeros) {
+  uint hex = two_digit_to_segment(device, num, leadingZeros);
+  TM1637_put_2_bytes(device, 2, hex);
 }
 
-void TM1637_display_both(int leftNum, int rightNum, bool leadingZeros) {
-  uint leftHex = two_digit_to_segment(leftNum, leadingZeros, colon);
-  uint rightHex = two_digit_to_segment(rightNum, leadingZeros, false);  
+void TM1637_display_both(TM1637_device* device, int leftNum, int rightNum, bool leadingZeros) {
+  uint leftHex = two_digit_to_segment(device, leftNum, leadingZeros);
+  uint rightHex = two_digit_to_segment(device, rightNum, leadingZeros);  
 
   uint hex = leftHex + (rightHex << 16);
-  TM1637_put_4_bytes(0, hex);
+  TM1637_put_4_bytes(device, 0, hex);
 }
 
-void TM1637_set_colon(bool on) {
-  colon = on;
+void TM1637_clear(TM1637_device* device) {
+  pio_sm_put_blocking(device->pio, device->sm, 0x80);
+  pio_sm_put_blocking(device->pio, device->sm, 0xc040);
+  pio_sm_put_blocking(device->pio, device->sm, 0x0);
 }
 
-void TM1637_set_brightness(int value) {
-  brightness = value;
-}
-
-int TM1637_get_brightness() {
-  return brightness;
-}
-
-void TM1637_clear() {
-  pio_sm_put_blocking(pio, sm, 0x80);
-  pio_sm_put_blocking(pio, sm, 0xc040);
-  pio_sm_put_blocking(pio, sm, 0x0);
-}
-
-void TM1637_refresh_frequency(void) {
+void TM1637_refresh_frequency(TM1637_device* device) {
   // Set sm clock close to 45 kHz
   uint32_t sysFreq = clock_get_hz(clk_sys);
   float divider = sysFreq/45000;
@@ -303,23 +286,23 @@ void TM1637_refresh_frequency(void) {
     divider = 1;
   }
 
-  sm_config_set_clkdiv(&smConfig, divider); 
+  sm_config_set_clkdiv(&device->config, divider); 
 }
 
-void TM1637_wait() {
-  while (!pio_sm_is_tx_fifo_empty(pio, sm)) {
+void TM1637_wait(TM1637_device* device) {
+  while (!pio_sm_is_tx_fifo_empty(device->pio, device->sm)) {
     // Wait while there is something in tx fifo (on the way out). 
-    if (!pio_sm_is_rx_fifo_empty(pio, sm)) {
+    if (!pio_sm_is_rx_fifo_empty(device->pio, device->sm)) {
       // Found some response from the sm. Since the tx still isn't empty
       // we just want to throw this away.
-      pio_sm_get_blocking(pio, sm);
+      pio_sm_get_blocking(device->pio, device->sm);
     }
   }
   int d = 0;
   while (d != 1) {
     // Now there is nothing in tx fifo, but there might still be work to do.
     // The status 1 is sent as a response when done.
-    d = pio_sm_get_blocking(pio, sm);
+    d = pio_sm_get_blocking(device->pio, device->sm);
   }
   uart_default_tx_wait_blocking();
 }
