@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "stdint.h": "c",
-        "stdint-gcc.h": "c",
-        "stdlib.h": "c",
-        "pio.h": "c",
-        "picotm1637.pio.h": "c"
-    }
-}
