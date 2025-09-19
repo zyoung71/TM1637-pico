@@ -4,10 +4,10 @@
 #define TM1637_H_
 
 #include <hardware/pio.h>
-#include <stdbool.h>
+#include <pico/types.h>
 
-typedef unsigned int uint;
-
+/**
+ * Device date type for all TM1637 functions. */
 typedef struct TM1637_device
 {
     PIO pio; // PIO instance
@@ -22,12 +22,14 @@ typedef struct TM1637_device
 /** 
  * Initiate TM1637 display
  *
+ * @param device The device to use.
  * @param clk is the clock GPIO pin number. 
  * @param dio is the data GPIO pin number. */
 void TM1637_init(TM1637_device* device);
 
 /** Display one or two bytes of raw data on the display. 
  *
+ * @param device The device to use.
  * @param startPos The digit index to start at. Ranges from `0` to `3`, where 
  *        `0` is to the left
  * @param data The data for one or two bytes, the least significant byte will be 
@@ -39,6 +41,7 @@ void TM1637_put_2_bytes(TM1637_device* device, uint startPos, uint data);
 
 /** Display one to four bytes of raw data on the display. 
  *
+ * @param device The device to use.
  * @param startPos The digit index to start at. Ranges from `0` to `3`, where 
  *        `0` is to the left
  * @param data The data for one to four bytes, the least significant byte will 
@@ -47,12 +50,14 @@ void TM1637_put_4_bytes(TM1637_device* device, uint startPos, uint data);
 
 /** Display a positive number with 4 digits or a negative number with 3 digits.
  * 
+ *  @param device The device to use.
  *  @param number The number to display.
  *  @param leadingZeros If leading zeros should be displayed or not. */
 void TM1637_display(TM1637_device* device, int number, bool leadingZeros);    
   
 /** Display a string of characters.
  *
+ * @param device The device to use.
  * @param word The word to display. May be at most 4 letters long.
  * @param leftAlign true if left alignment is desired, false for right 
  * alignment. Has no effect if all 4 chars are used. 
@@ -67,6 +72,16 @@ void TM1637_display(TM1637_device* device, int number, bool leadingZeros);
  * counted in the word length as the colon internaly belongs to the character
  * before it. Will only work if aligned with the colon spot on the display. */
 void TM1637_display_word(TM1637_device* device, char *word, bool leftAlign);
+
+/**
+ * Display animated text incoming from the left or right. Supports multiple devices for longer text.
+ * 
+ * @param devices The devices to use for this text.
+ * @param device_count The count of devices.
+ * @param text Input text for the animation.
+ * @param char_count The amount of characters in text. Normally just `sizeof(text)`.
+ * @param right_incoming true if text should display from right to left, false if left to right. */
+void TM1637_display_moving_text(TM1637_device** devices, size_t device_count, char* text, size_t char_count, uint interval_ms, bool right_incoming);
 
 /** Display a positive number on the 2 leftmost digits on the display. 
  *

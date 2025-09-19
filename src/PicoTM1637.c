@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <pico/stdlib.h>
 #include <hardware/clocks.h>
 #include <PicoTM1637.h>
@@ -229,6 +230,47 @@ void TM1637_display_word(TM1637_device* device, char *word, bool leftAlign) {
     bin |= (0x80 << col*8);
   }
   TM1637_put_4_bytes(device, startIndex, bin);
+}
+
+void TM1637_display_moving_text(TM1637_device** devices, size_t device_count, char* text, size_t char_count, uint interval_ms, bool right_incoming)
+{
+  // Total empty digits to either the left and right of text. x4 for 4 digits per display.
+  int n_spaces = device_count * 4;
+
+  // Total iterations needed for the display of text. Includes the empty spaces.
+  int n_iterations = n_spaces * 2 + char_count;
+
+  char all[n_iterations];
+
+  // Set begin and end partitions with empty spaces, fill the remaining indecies with the input text.
+  // Example with two displays: 
+  // "_ _ _ _ _ _ _ _ t e s t _ _ _ _ _ _ _ _"
+  memset(all, ' ', n_iterations);
+  memcpy(all + n_spaces, text, char_count);
+
+  if (right_incoming) // Shift left
+  {
+    // Only shift for spaces on one side + char count. Ex: "_ _ _ _ _ _ _ _ t e s t"
+    for (int i_text = 0; i_text < (n_iterations - n_spaces); i_text++)
+    {
+      memmove(all, all + 1, (n_iterations - 1) * sizeof(char));
+      all[n_iterations - 1] = ' ';
+      for (int i_display = 0; i_display < device_count; i_display++)
+        TM1637_display_word(devices[i_display], all + i_display * 4, false);
+      sleep_ms(interval_ms);
+    }
+  }
+  else
+  {
+    for (int i_text = 0; i_text < (n_iterations - n_spaces); i_text++)
+    {
+      memmove(all + 1, all, (n_iterations - 1) * sizeof(char));
+      all[0] = ' ';
+      for (int i_display = 0; i_display < device_count; i_display++)
+        TM1637_display_word(devices[i_display], all + i_display * 4, false);
+      sleep_ms(interval_ms);
+    }
+  }
 }
 
 /* Helper for getting the segment representation for a 2 digit number. */
