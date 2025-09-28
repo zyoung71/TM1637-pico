@@ -38,7 +38,6 @@ int main()
     TM1637_display_word(&device2, "dEMO", true);
     sleep_ms(10000);
     
-  /*
     TM1637_put_4_bytes(&device, 1, 0x4f5b06);  // raw bytes for 123 
     TM1637_put_4_bytes(&device2, 1, 0x4f5b06);  // raw bytes for 123 
     sleep_ms(1000);
@@ -78,10 +77,10 @@ int main()
     sleep_ms(2000);
     TM1637_clear(&device);
     TM1637_clear(&device2);
-*/
+
     TM1637_device* devices[] = {&device, &device2};
     char moving_text[] = "Hello World";
-    TM1637_display_moving_text(devices, count_of(devices), moving_text, sizeof(moving_text), 200, false);
+    TM1637_display_moving_text(devices, count_of(devices), moving_text, 200, false);
 
     // Demo a clock, by default there will be a colon between the numbers.
     int seconds = 0;
