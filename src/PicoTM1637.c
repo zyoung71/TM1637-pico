@@ -197,7 +197,7 @@ void TM1637_display(TM1637_device* device, int number, bool leadingZeros) {
   TM1637_put_4_bytes(device, startPos, hex);
 }
 
-void TM1637_display_word(TM1637_device* device, char *word, bool leftAlign) {
+void TM1637_display_word(TM1637_device* device, const char *word, bool leftAlign) {
   // Find the binary representation of the word
   uint bin = 0;
   int i = 0;
@@ -232,13 +232,14 @@ void TM1637_display_word(TM1637_device* device, char *word, bool leftAlign) {
   TM1637_put_4_bytes(device, startIndex, bin);
 }
 
-void TM1637_display_moving_text(TM1637_device** devices, size_t device_count, char* text, size_t char_count, uint interval_ms, bool right_incoming)
+void TM1637_display_moving_text(TM1637_device** devices, size_t device_count, const char* text, uint interval_ms, bool right_incoming)
 {
   // Total empty digits to either the left and right of text. x4 for 4 digits per display.
   int n_spaces = device_count * 4;
 
   // Total iterations needed for the display of text. Includes the empty spaces.
-  int n_iterations = n_spaces * 2 + char_count;
+  size_t n_char = strlen(text);
+  int n_iterations = n_spaces * 2 + n_char;
 
   char all[n_iterations];
 
@@ -246,7 +247,7 @@ void TM1637_display_moving_text(TM1637_device** devices, size_t device_count, ch
   // Example with two displays: 
   // "_ _ _ _ _ _ _ _ t e s t _ _ _ _ _ _ _ _"
   memset(all, ' ', n_iterations);
-  memcpy(all + n_spaces, text, char_count);
+  memcpy(all + n_spaces, text, n_char);
 
   if (right_incoming) // Shift left
   {
