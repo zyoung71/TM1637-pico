@@ -44,6 +44,35 @@ int main()
     TM1637_init(&device3);  
     TM1637_clear(&device3); 
     
+    TM1637_device_t* d1ptr = &device;
+    TM1637_device_t* d2ptr = &device2;
+    TM1637_device_t* d3ptr = &device3;
+    while (1)
+    {
+      
+      TM1637_display_moving_text(&d1ptr, 1, "Fuck", 150, true);
+      TM1637_display_moving_text(&d2ptr, 1, "gAy", 150, true);
+      TM1637_display_moving_text(&d3ptr, 1, "ASS", 150, true);
+
+      TM1637_display_word(d1ptr, "I", true);
+      sleep_ms(1000);
+      TM1637_display_word(d2ptr, "HAVE", true);
+      sleep_ms(1000);
+      TM1637_display_word(d3ptr, "A", true);
+      sleep_ms(1500);
+      for (int i = 0; i < 4; i++)
+      {
+        TM1637_display_word(d1ptr, "bomb", true);
+      TM1637_display_word(d2ptr, "bomb", true);
+      TM1637_display_word(d3ptr, "bomb", true);
+      sleep_ms(500);
+      TM1637_clear(d1ptr);
+      TM1637_clear(d2ptr);
+      TM1637_clear(d3ptr);
+      sleep_ms(500);
+      }
+    }
+
     TM1637_display_word(&device, "dEMO", true);
     TM1637_display_word(&device2, "dEMO", true);
     TM1637_display_word(&device3, "dEMO", true);

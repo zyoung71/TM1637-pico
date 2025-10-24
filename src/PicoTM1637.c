@@ -198,9 +198,9 @@ uint fetch_char_encoding(char charToFind, bool upsidedown) {
   short i = 0;
   uint8_t c = 1;
   while (c != '\0') {
-    c = segmentsArr[upsidedown][i];
+    c = segmentsArr[upsidedown ? 1 : 0][i];
     if (c == charToFind) {
-      return segmentsArr[upsidedown][i+1];
+      return segmentsArr[upsidedown ? 1 : 0][i+1];
     }
     i += 2;  // only every other element is a characer to look for
   }
@@ -219,7 +219,7 @@ uint fetch_char_encoding(char charToFind, bool upsidedown) {
 }
 
 void TM1637_display(TM1637_device_t* device, int number, bool leadingZeros) { 
-  bool udown = device->upsidedown;
+  int udown = device->upsidedown ? 1 : 0;
   // Is number positive or negative?
   int isPositive;
   int isNegative;
@@ -230,13 +230,10 @@ void TM1637_display(TM1637_device_t* device, int number, bool leadingZeros) {
     number = -1*number;
   }
   // Determine length of number
-  int len = udown ? MAX_DIGITS - 1 : 0;
+  int len = 0;
   int numberCopy = number;
-  while (numberCopy) {
-    if (udown)
-      len--;
-    else
-      len++;
+  while (numberCopy) {  
+    len++;
     numberCopy /= 10;
   }
   if (len > 3 + isPositive) {
@@ -249,10 +246,7 @@ void TM1637_display(TM1637_device_t* device, int number, bool leadingZeros) {
   unsigned int hex = num_to_hex(number, 0, udown);
   if (!isPositive) {
     hex = (hex << 8) + 0x40;  // add a negative sign
-    if (udown)
-      len--;  // count negative sign in length
-    else
-      len++;
+    len++; // count negative sign in length
   } 
   unsigned int startPos = 0;
   if (leadingZeros && (len < MAX_DIGITS)) {
